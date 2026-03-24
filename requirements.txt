@@ -1,0 +1,26 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Core — always required
+# ─────────────────────────────────────────────────────────────────────────────
+requests>=2.31.0
+pydub>=0.25.1
+python-dotenv>=1.0.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Audio backend for pydub  (install one)
+# ─────────────────────────────────────────────────────────────────────────────
+# pydub needs ffmpeg to read/write MP3. Install it via your OS package manager:
+#   macOS  : brew install ffmpeg
+#   Ubuntu : sudo apt install ffmpeg
+#   Windows: https://ffmpeg.org/download.html  (add to PATH)
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Engine-specific  (install only what you need)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# amazon_polly
+boto3>=1.34.0
+
+# gtts
+gtts>=2.5.1
+
+# elevenlabs and openai_tts use only `requests` — no extra package needed

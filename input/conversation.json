@@ -1,0 +1,61 @@
+{
+  "voices": {
+    "elevenlabs": {
+      "doctor":  "21m00Tcm4TlvDq8ikWAM",
+      "patient": "pNInz6obpgDQGcFmaJgB"
+    },
+    "openai_tts": {
+      "doctor":  "nova",
+      "patient": "onyx"
+    },
+    "amazon_polly": {
+      "doctor":  "Joanna",
+      "patient": "Matthew"
+    },
+    "gtts": {
+      "doctor":  "en",
+      "patient": "en-uk"
+    }
+  },
+
+  "voice_settings": {
+    "doctor": {
+      "stability": 0.55,
+      "similarity_boost": 0.75,
+      "style": 0.25,
+      "use_speaker_boost": true
+    },
+    "patient": {
+      "stability": 0.40,
+      "similarity_boost": 0.80,
+      "style": 0.50,
+      "use_speaker_boost": true
+    }
+  },
+
+  "conversation": [
+    {"speaker": "doctor",  "text": "Mr. Ahmed, I'm Doctor Sara. Can you hear me? I need you to stay calm. You're in the hospital now and we're going to take care of you. Can you tell me where it hurts?"},
+    {"speaker": "patient", "text": "My... my chest. It feels like something is sitting on it. A heavy weight. And my left arm, it's been numb for about 20 minutes."},
+    {"speaker": "doctor",  "text": "Okay, that's very helpful. On a scale of 1 to 10, how bad is the chest pain right now?"},
+    {"speaker": "patient", "text": "Maybe... an 8. It keeps coming in waves. I thought it would pass but it got worse."},
+    {"speaker": "doctor",  "text": "Did the pain spread anywhere else — your jaw, your back, your neck?"},
+    {"speaker": "patient", "text": "Yes, actually. My jaw. I thought it was a toothache at first."},
+    {"speaker": "doctor",  "text": "I understand. Are you feeling nauseous, or did you vomit?"},
+    {"speaker": "patient", "text": "I feel very sick to my stomach. I almost vomited in the ambulance."},
+    {"speaker": "doctor",  "text": "Are you sweating more than usual?"},
+    {"speaker": "patient", "text": "Yes, I was sweating a lot at home, even though it wasn't hot."},
+    {"speaker": "doctor",  "text": "Let's get an ECG running immediately, draw troponin levels, and get him on oxygen. 325 milligrams aspirin now if he hasn't had any. Mr. Ahmed, do you have any history of heart problems?"},
+    {"speaker": "patient", "text": "My father had a heart attack at 60. I was told my cholesterol is high but I never took it seriously."},
+    {"speaker": "doctor",  "text": "Do you smoke?"},
+    {"speaker": "patient", "text": "I used to. I quit about 3 years ago. Before that, about a pack a day for 20 years."},
+    {"speaker": "doctor",  "text": "Are you diabetic or do you have high blood pressure?"},
+    {"speaker": "patient", "text": "Both. I take metformin and amlodipine. But honestly, I haven't been taking them regularly."},
+    {"speaker": "doctor",  "text": "Okay. I have to be straightforward with you, Mr. Ahmed. Your symptoms — the chest pressure, the arm numbness, the jaw pain, sweating, and nausea — are very consistent with a heart attack. Your ECG is confirming that. We need to act very fast."},
+    {"speaker": "patient", "text": "A heart attack? Am I going to die?"},
+    {"speaker": "doctor",  "text": "You are in the right place at the right time. We caught this early enough to intervene. We're going to perform a procedure called a coronary angioplasty — we'll go in, find the blocked artery, and open it up with a small balloon and a stent. It's the most effective treatment we have right now. Every minute matters, so we need your consent to proceed."},
+    {"speaker": "patient", "text": "Yes... yes, do whatever you need to do. Is my wife here?"},
+    {"speaker": "doctor",  "text": "The nurse is calling her right now. She'll be here soon and we'll keep her fully informed. You focus on staying calm and breathing steadily. You're in good hands."},
+    {"speaker": "patient", "text": "Thank you, Doctor."},
+    {"speaker": "doctor",  "text": "Let's move. Cath lab, now."}
+  ]
+}
