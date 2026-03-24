@@ -17,6 +17,7 @@ selected via TTS_ENGINE in your .env file.
 Folder layout (relative to this script):
     input/          ← place your JSON conversation files here
     output/         ← generated MP3s are saved here
+    temp/           ← per-run temp folders created and deleted here
     .env            ← credentials & engine selection
 
 Usage:
@@ -32,12 +33,10 @@ import abc
 import argparse
 import json
 import os
-import shutil
 import sys
 import tempfile
 import time
 import requests
-from io import BytesIO
 from pathlib import Path
 from pydub import AudioSegment
 
@@ -50,6 +49,7 @@ except ImportError:
 BASE_DIR   = Path(__file__).parent
 INPUT_DIR  = BASE_DIR / "input"
 OUTPUT_DIR = BASE_DIR / "output"
+TEMP_DIR   = BASE_DIR / "temp"
 
 # Load .env from script directory, fall back to cwd
 _env_path = BASE_DIR / ".env"
@@ -58,6 +58,25 @@ load_dotenv(dotenv_path=_env_path if _env_path.exists() else Path(".env"))
 # Silence gaps (milliseconds)
 GAP_BETWEEN_LINES  = 700   # after every line
 GAP_SPEAKER_CHANGE = 400   # extra when speaker changes
+
+def _bytes_to_segment(data: bytes, fmt: str, tmp_dir: Path) -> AudioSegment:
+    """
+    Write raw audio bytes to a file in tmp_dir, load it with pydub, then
+    return the AudioSegment.  Passing a real file path — not a BytesIO —
+    means pydub never needs to create its own temp files internally.
+    The file stays in tmp_dir and is deleted when the run's TemporaryDirectory
+    context manager exits.
+    """
+    suffix = f".{fmt}"
+    fd, fpath = tempfile.mkstemp(suffix=suffix, dir=tmp_dir)
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(data)
+        return AudioSegment.from_file(fpath, format=fmt)
+    except Exception:
+        # mkstemp file is already in tmp_dir, so it will be cleaned up there.
+        raise
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -132,8 +151,7 @@ class ElevenLabsEngine(TTSEngine):
                 "voice_settings": settings,
             },
         )
-        # Decoded entirely in memory — no disk write needed
-        return AudioSegment.from_file(BytesIO(resp.content), format="mp3")
+        return _bytes_to_segment(resp.content, "mp3", tmp_dir)
 
     def list_voices(self) -> None:
         resp = requests.get(f"{self._BASE}/voices",
@@ -180,7 +198,7 @@ class OpenAITTSEngine(TTSEngine):
             },
         )
         resp.raise_for_status()
-        return AudioSegment.from_file(BytesIO(resp.content), format="mp3")
+        return _bytes_to_segment(resp.content, "mp3", tmp_dir)
 
     def list_voices(self) -> None:
         print(f"\n  OpenAI TTS voices  (model: {self.model_id})\n")
@@ -220,9 +238,7 @@ class AmazonPollyEngine(TTSEngine):
             TextType     = "text",
         )
         # AudioStream is a streaming body — read it fully into memory
-        return AudioSegment.from_file(
-            BytesIO(resp["AudioStream"].read()), format="mp3"
-        )
+        return _bytes_to_segment(resp["AudioStream"].read(), "mp3", tmp_dir)
 
     def list_voices(self) -> None:
         paginator = self._client.get_paginator("describe_voices")
@@ -449,6 +465,7 @@ def main() -> None:
     # ── Ensure input/ and output/ directories exist ──
     INPUT_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
     # ── List input files mode ──
     if args.list_inputs:
@@ -507,7 +524,12 @@ def main() -> None:
     print(f"  Voices : {voice_map}\n")
 
     # ── Run inside a temporary directory — wiped automatically on exit ──
-    with tempfile.TemporaryDirectory(prefix="tts_run_") as _tmp:
+    #
+    # We also redirect tempfile.tempdir to tmp_dir for the entire synthesis
+    # block. This ensures that pydub's internal ffmpeg calls (which create
+    # NamedTemporaryFiles when decoding BytesIO objects) land inside tmp_dir
+    # rather than in the cwd or the OS default temp location.
+    with tempfile.TemporaryDirectory(prefix="tts_run_", dir=TEMP_DIR) as _tmp:
         tmp_dir = Path(_tmp)
         print(f"  Temp   : {tmp_dir}  (auto-deleted on completion)\n")
 
@@ -520,10 +542,10 @@ def main() -> None:
                 voice_settings_map = voice_settings_map,
             )
         except Exception as exc:
-            # tmp_dir is deleted even on error thanks to the context manager
             sys.exit(f"\n  Error during synthesis: {exc}")
 
-    # tmp_dir and all its contents are now deleted
+    # tmp_dir and every file inside it are deleted by the TemporaryDirectory
+    # context manager — including all per-line audio files written by each engine.
     print(f"\n  Temp files cleaned up.")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
