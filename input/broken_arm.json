@@ -1,0 +1,63 @@
+{
+  "voices": {
+    "elevenlabs": {
+      "doctor":  "21m00Tcm4TlvDq8ikWAM",
+      "patient": "pNInz6obpgDQGcFmaJgB"
+    },
+    "openai_tts": {
+      "doctor":  "nova",
+      "patient": "onyx"
+    },
+    "amazon_polly": {
+      "doctor":  "Joanna",
+      "patient": "Matthew"
+    },
+    "gtts": {
+      "doctor":  "en",
+      "patient": "en-uk"
+    }
+  },
+
+  "voice_settings": {
+    "doctor": {
+      "stability": 0.55,
+      "similarity_boost": 0.75,
+      "style": 0.25,
+      "use_speaker_boost": true
+    },
+    "patient": {
+      "stability": 0.40,
+      "similarity_boost": 0.80,
+      "style": 0.50,
+      "use_speaker_boost": true
+    }
+  },
+
+  "conversation": [
+    {"speaker": "doctor",  "text": "Hello, I'm Doctor Sara. What happened?"},
+    {"speaker": "patient", "text": "Hi doctor... I fell down the stairs about an hour ago, and my arm hurts really badly."},
+    {"speaker": "doctor",  "text": "I'm sorry to hear that. Which arm is injured?"},
+    {"speaker": "patient", "text": "My right arm. I can't move it properly."},
+    {"speaker": "doctor",  "text": "On a scale from 1 to 10, how severe is the pain?"},
+    {"speaker": "patient", "text": "It's about a 9. It gets worse when I try to move it."},
+    {"speaker": "doctor",  "text": "Did you notice any swelling or deformity in the arm?"},
+    {"speaker": "patient", "text": "Yes, it's swollen, and it looks a bit bent in the middle."},
+    {"speaker": "doctor",  "text": "Alright, try to keep it as still as possible. Did you hear any snapping sound when you fell?"},
+    {"speaker": "patient", "text": "Yes, I think I heard a crack when I landed."},
+    {"speaker": "doctor",  "text": "Okay. Are you feeling any numbness or tingling in your fingers?"},
+    {"speaker": "patient", "text": "A little bit of tingling, yes."},
+    {"speaker": "doctor",  "text": "Can you move your fingers at all?"},
+    {"speaker": "patient", "text": "Yes, but it hurts when I do."},
+    {"speaker": "doctor",  "text": "That's helpful. Based on your symptoms — severe pain, swelling, deformity, and the cracking sound — this is very likely a fracture."},
+    {"speaker": "patient", "text": "A fracture? So it's broken?"},
+    {"speaker": "doctor",  "text": "Yes, it appears to be a broken arm. We'll confirm with an X-ray immediately."},
+    {"speaker": "patient", "text": "Will I need surgery?"},
+    {"speaker": "doctor",  "text": "That depends on the type of fracture. If the bones are well aligned, a cast may be enough. If not, we may need to realign them or consider surgery."},
+    {"speaker": "patient", "text": "Okay... it really hurts."},
+    {"speaker": "doctor",  "text": "We'll give you pain relief right away and immobilize your arm with a splint to prevent further injury."},
+    {"speaker": "patient", "text": "How long will it take to heal?"},
+    {"speaker": "doctor",  "text": "Most arm fractures take about 6 to 8 weeks to heal, depending on the severity."},
+    {"speaker": "patient", "text": "Alright. Thank you, doctor."},
+    {"speaker": "doctor",  "text": "You're welcome. Let's get you to X-ray now and take care of this properly."}
+  ]
+}

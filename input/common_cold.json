@@ -1,0 +1,61 @@
+{
+  "voices": {
+    "elevenlabs": {
+      "doctor":  "21m00Tcm4TlvDq8ikWAM",
+      "patient": "pNInz6obpgDQGcFmaJgB"
+    },
+    "openai_tts": {
+      "doctor":  "nova",
+      "patient": "onyx"
+    },
+    "amazon_polly": {
+      "doctor":  "Joanna",
+      "patient": "Matthew"
+    },
+    "gtts": {
+      "doctor":  "en",
+      "patient": "en-uk"
+    }
+  },
+
+  "voice_settings": {
+    "doctor": {
+      "stability": 0.55,
+      "similarity_boost": 0.75,
+      "style": 0.25,
+      "use_speaker_boost": true
+    },
+    "patient": {
+      "stability": 0.40,
+      "similarity_boost": 0.80,
+      "style": 0.50,
+      "use_speaker_boost": true
+    }
+  },
+
+  "conversation": [
+    {"speaker": "doctor",  "text": "Good morning, Mr. Ahmed. I'm Doctor Sara. What brings you in today?"},
+    {"speaker": "patient", "text": "Good morning, doctor. I've been feeling unwell for the past two days. I have a runny nose and a sore throat."},
+    {"speaker": "doctor",  "text": "I see. Do you also have a cough or any fever?"},
+    {"speaker": "patient", "text": "Yes, I have a mild cough, and I felt a slight fever last night."},
+    {"speaker": "doctor",  "text": "Is the cough dry, or are you bringing up mucus?"},
+    {"speaker": "patient", "text": "It's mostly dry, but sometimes there's a little mucus."},
+    {"speaker": "doctor",  "text": "Have you noticed any body aches or fatigue?"},
+    {"speaker": "patient", "text": "Yes, I feel tired all the time, and my body feels a bit achy."},
+    {"speaker": "doctor",  "text": "Any headaches or sinus pressure?"},
+    {"speaker": "patient", "text": "Yes, I have a mild headache and some pressure around my nose."},
+    {"speaker": "doctor",  "text": "Alright. Have you been in contact with anyone who was sick recently?"},
+    {"speaker": "patient", "text": "Yes, a colleague at work had similar symptoms last week."},
+    {"speaker": "doctor",  "text": "That makes sense. Based on your symptoms — runny nose, sore throat, mild cough, slight fever, and fatigue — this looks like a common cold."},
+    {"speaker": "patient", "text": "Is it serious, doctor?"},
+    {"speaker": "doctor",  "text": "No, it's usually mild and self-limiting. It should improve within a few days to a week."},
+    {"speaker": "patient", "text": "Do I need antibiotics?"},
+    {"speaker": "doctor",  "text": "No, antibiotics are not effective for viral infections like the common cold. Instead, focus on rest and hydration."},
+    {"speaker": "patient", "text": "What can I take to feel better?"},
+    {"speaker": "doctor",  "text": "You can take paracetamol for fever and pain, use saline nasal spray for congestion, and drink warm fluids. Honey can help soothe your throat."},
+    {"speaker": "patient", "text": "Alright. Should I stay home from work?"},
+    {"speaker": "doctor",  "text": "Yes, it's better to rest and avoid spreading the infection to others, especially for the next couple of days."},
+    {"speaker": "patient", "text": "Okay, doctor. Thank you."},
+    {"speaker": "doctor",  "text": "You're welcome. If your symptoms worsen, or if you develop a high fever or difficulty breathing, come back immediately."}
+  ]
+}

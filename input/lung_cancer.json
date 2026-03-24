@@ -1,0 +1,63 @@
+{
+  "voices": {
+    "elevenlabs": {
+      "doctor":  "21m00Tcm4TlvDq8ikWAM",
+      "patient": "pNInz6obpgDQGcFmaJgB"
+    },
+    "openai_tts": {
+      "doctor":  "nova",
+      "patient": "onyx"
+    },
+    "amazon_polly": {
+      "doctor":  "Joanna",
+      "patient": "Matthew"
+    },
+    "gtts": {
+      "doctor":  "en",
+      "patient": "en-uk"
+    }
+  },
+
+  "voice_settings": {
+    "doctor": {
+      "stability": 0.55,
+      "similarity_boost": 0.75,
+      "style": 0.25,
+      "use_speaker_boost": true
+    },
+    "patient": {
+      "stability": 0.40,
+      "similarity_boost": 0.80,
+      "style": 0.50,
+      "use_speaker_boost": true
+    }
+  },
+
+  "conversation": [
+    {"speaker": "doctor",  "text": "Good afternoon, Mr. Ahmed. I'm Doctor Sara. How have you been feeling lately?"},
+    {"speaker": "patient", "text": "Not very well, doctor. I've had a cough for a few months now, and it doesn't seem to go away."},
+    {"speaker": "doctor",  "text": "I see. Is the cough dry, or are you producing mucus?"},
+    {"speaker": "patient", "text": "Mostly with mucus, sometimes with a bit of blood."},
+    {"speaker": "doctor",  "text": "Have you experienced any shortness of breath?"},
+    {"speaker": "patient", "text": "Yes, especially when I walk or climb stairs."},
+    {"speaker": "doctor",  "text": "Any chest pain or discomfort?"},
+    {"speaker": "patient", "text": "Sometimes, a dull pain on the right side of my chest."},
+    {"speaker": "doctor",  "text": "Have you noticed any weight loss or fatigue?"},
+    {"speaker": "patient", "text": "Yes, I've lost some weight without trying, and I feel tired most of the time."},
+    {"speaker": "doctor",  "text": "Do you have a history of smoking?"},
+    {"speaker": "patient", "text": "Yes, I smoked for about 25 years. I quit a few years ago."},
+    {"speaker": "doctor",  "text": "Thank you for sharing that. We ran some tests, including a chest scan and biopsy. I want to discuss the results with you."},
+    {"speaker": "patient", "text": "Okay... is it something serious?"},
+    {"speaker": "doctor",  "text": "The results show that there is a tumor in your lung. This means you have lung cancer."},
+    {"speaker": "patient", "text": "Cancer... I was afraid of that. What happens now?"},
+    {"speaker": "doctor",  "text": "I understand this is difficult news. The next step is to determine the stage and the best treatment plan for you."},
+    {"speaker": "patient", "text": "Is it treatable?"},
+    {"speaker": "doctor",  "text": "Yes, there are several treatment options, including surgery, chemotherapy, radiation therapy, and targeted therapies. The choice depends on the stage and type of the cancer."},
+    {"speaker": "patient", "text": "Will I need to stay in the hospital?"},
+    {"speaker": "doctor",  "text": "Some treatments may require hospital visits, but many can be managed on an outpatient basis."},
+    {"speaker": "patient", "text": "I'm feeling overwhelmed."},
+    {"speaker": "doctor",  "text": "That's completely understandable. We will support you through every step, and we'll also connect you with specialists and support services."},
+    {"speaker": "patient", "text": "Thank you, doctor."},
+    {"speaker": "doctor",  "text": "You're welcome. We'll take this one step at a time together."}
+  ]
+}
