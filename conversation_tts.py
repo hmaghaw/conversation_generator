@@ -14,38 +14,16 @@ selected via TTS_ENGINE in your .env file.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Polly has a generous free tier (5M chars/month for 12 months)
 
-Setup:
-    pip install requests pydub python-dotenv
-    pip install boto3        # only for amazon_polly
-    pip install gtts         # only for gtts
-
-    Copy .env.example to .env and fill in your credentials.
+Folder layout (relative to this script):
+    input/          ← place your JSON conversation files here
+    output/         ← generated MP3s are saved here
+    .env            ← credentials & engine selection
 
 Usage:
     python conversation_tts.py --input conversation.json
-    python conversation_tts.py --input conversation.json --output out.mp3
-    python conversation_tts.py --list-voices          # engine-aware
-
-    CLI flags always override .env values:
-    python conversation_tts.py --input conversation.json --engine gtts
-
-JSON format (see conversation.json for a full example):
-    {
-      "voices": {
-        "elevenlabs"  : { "doctor": "<voice_id>",  "patient": "<voice_id>" },
-        "openai_tts"  : { "doctor": "nova",        "patient": "onyx"       },
-        "amazon_polly": { "doctor": "Joanna",      "patient": "Matthew"    },
-        "gtts"        : { "doctor": "en",          "patient": "en"         }
-      },
-      "voice_settings": {
-        "doctor":  { "stability": 0.55, "similarity_boost": 0.75, "style": 0.25 },
-        "patient": { "stability": 0.40, "similarity_boost": 0.80, "style": 0.50 }
-      },
-      "conversation": [
-        { "speaker": "doctor",  "text": "How are you feeling?" },
-        { "speaker": "patient", "text": "Not great, doctor."   }
-      ]
-    }
+    python conversation_tts.py --input conversation.json --output result.mp3
+    python conversation_tts.py --list-voices
+    python conversation_tts.py --engine gtts --input conversation.json
 """
 
 from __future__ import annotations
@@ -54,7 +32,9 @@ import abc
 import argparse
 import json
 import os
+import shutil
 import sys
+import tempfile
 import time
 import requests
 from io import BytesIO
@@ -66,8 +46,13 @@ try:
 except ImportError:
     sys.exit("Missing: pip install python-dotenv")
 
+# ── Paths ──────────────────────────────────────────────────────────────────────
+BASE_DIR   = Path(__file__).parent
+INPUT_DIR  = BASE_DIR / "input"
+OUTPUT_DIR = BASE_DIR / "output"
+
 # Load .env from script directory, fall back to cwd
-_env_path = Path(__file__).parent / ".env"
+_env_path = BASE_DIR / ".env"
 load_dotenv(dotenv_path=_env_path if _env_path.exists() else Path(".env"))
 
 # Silence gaps (milliseconds)
@@ -86,8 +71,13 @@ class TTSEngine(abc.ABC):
 
     @abc.abstractmethod
     def synthesize(self, text: str, voice: str, speaker: str,
-                   voice_settings: dict | None) -> AudioSegment:
-        """Return an AudioSegment for one line of text."""
+                   voice_settings: dict | None,
+                   tmp_dir: Path) -> AudioSegment:
+        """
+        Return an AudioSegment for one line of text.
+        tmp_dir is a per-run temporary directory; write any intermediate files
+        there — they are deleted automatically after the run completes.
+        """
 
     @abc.abstractmethod
     def list_voices(self) -> None:
@@ -127,14 +117,14 @@ class ElevenLabsEngine(TTSEngine):
         self.model_id = model_id
 
     def synthesize(self, text: str, voice: str, speaker: str,
-                   voice_settings: dict | None) -> AudioSegment:
+                   voice_settings: dict | None, tmp_dir: Path) -> AudioSegment:
         settings = voice_settings or self._DEFAULT_SETTINGS
         resp = self._post_with_retry(
             url     = f"{self._BASE}/text-to-speech/{voice}",
             headers = {
-                "xi-api-key"   : self.api_key,
-                "Content-Type" : "application/json",
-                "Accept"       : "audio/mpeg",
+                "xi-api-key"  : self.api_key,
+                "Content-Type": "application/json",
+                "Accept"      : "audio/mpeg",
             },
             payload = {
                 "text"          : text,
@@ -142,6 +132,7 @@ class ElevenLabsEngine(TTSEngine):
                 "voice_settings": settings,
             },
         )
+        # Decoded entirely in memory — no disk write needed
         return AudioSegment.from_file(BytesIO(resp.content), format="mp3")
 
     def list_voices(self) -> None:
@@ -174,7 +165,7 @@ class OpenAITTSEngine(TTSEngine):
         self.model_id = model_id
 
     def synthesize(self, text: str, voice: str, speaker: str,
-                   voice_settings: dict | None) -> AudioSegment:
+                   voice_settings: dict | None, tmp_dir: Path) -> AudioSegment:
         resp = requests.post(
             "https://api.openai.com/v1/audio/speech",
             headers = {
@@ -205,19 +196,22 @@ class OpenAITTSEngine(TTSEngine):
 class AmazonPollyEngine(TTSEngine):
     name = "amazon_polly"
 
-    def __init__(self, region: str = "us-east-1", engine: str = "neural"):
+    def __init__(self, aws_access_key: str, aws_secret_key: str,
+                 region: str = "us-east-1", engine: str = "neural"):
         try:
             import boto3
             self._client = boto3.client(
                 "polly",
-                region_name           = region
+                region_name           = region,
+                aws_access_key_id     = aws_access_key,
+                aws_secret_access_key = aws_secret_key,
             )
         except ImportError:
             sys.exit("Amazon Polly requires boto3:  pip install boto3")
         self._engine = engine  # "neural" or "standard"
 
     def synthesize(self, text: str, voice: str, speaker: str,
-                   voice_settings: dict | None) -> AudioSegment:
+                   voice_settings: dict | None, tmp_dir: Path) -> AudioSegment:
         resp = self._client.synthesize_speech(
             Text         = text,
             VoiceId      = voice,
@@ -225,6 +219,7 @@ class AmazonPollyEngine(TTSEngine):
             Engine       = self._engine,
             TextType     = "text",
         )
+        # AudioStream is a streaming body — read it fully into memory
         return AudioSegment.from_file(
             BytesIO(resp["AudioStream"].read()), format="mp3"
         )
@@ -249,6 +244,9 @@ class GTTSEngine(TTSEngine):
     Free Google TTS via the gTTS library.
     The 'voice' field in JSON = BCP-47 language code: 'en', 'en-uk', 'fr', 'ar', etc.
     No API key needed.
+
+    gTTS requires writing to a real file before pydub can decode it reliably,
+    so we write to tmp_dir and delete it automatically after the run.
     """
     name = "gtts"
 
@@ -258,15 +256,18 @@ class GTTSEngine(TTSEngine):
             self._gTTS = _gTTS
         except ImportError:
             sys.exit("gTTS requires:  pip install gtts")
-        self._slow = slow
+        self._slow  = slow
+        self._count = 0   # unique name per line within the tmp dir
 
     def synthesize(self, text: str, voice: str, speaker: str,
-                   voice_settings: dict | None) -> AudioSegment:
+                   voice_settings: dict | None, tmp_dir: Path) -> AudioSegment:
+        self._count += 1
+        tmp_file = tmp_dir / f"gtts_{self._count:04d}.mp3"
         tts = self._gTTS(text=text, lang=voice, slow=self._slow)
-        buf = BytesIO()
-        tts.write_to_fp(buf)
-        buf.seek(0)
-        return AudioSegment.from_file(buf, format="mp3")
+        tts.save(str(tmp_file))                           # written to tmp_dir
+        segment = AudioSegment.from_file(tmp_file, format="mp3")
+        # tmp_file will be wiped with the entire tmp_dir at run end
+        return segment
 
     def list_voices(self) -> None:
         try:
@@ -305,9 +306,15 @@ def build_engine(engine_name: str) -> TTSEngine:
         return OpenAITTSEngine(api_key=api_key, model_id=model_id)
 
     elif e == "amazon_polly":
+        access_key = os.getenv("AWS_ACCESS_KEY_ID")
+        secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+        if not access_key or not secret_key:
+            sys.exit(
+                "Error: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY not set in .env"
+            )
         region = os.getenv("AWS_REGION", "us-east-1")
         engine = os.getenv("POLLY_ENGINE", "neural")
-        return AmazonPollyEngine(region, engine)
+        return AmazonPollyEngine(access_key, secret_key, region, engine)
 
     elif e == "gtts":
         slow = os.getenv("GTTS_SLOW", "false").lower() == "true"
@@ -328,6 +335,7 @@ def generate_conversation(
     engine            : TTSEngine,
     conversation      : list,
     voice_map         : dict,
+    tmp_dir           : Path,
     voice_settings_map: dict | None = None,
     gap_between       : int = GAP_BETWEEN_LINES,
     gap_speaker_change: int = GAP_SPEAKER_CHANGE,
@@ -351,7 +359,7 @@ def generate_conversation(
         print(f"  [{i+1:02d}/{len(conversation)}] {speaker.upper():8s} "
               f"({voice})  ->  {text[:65]}{'...' if len(text) > 65 else ''}")
 
-        segment = engine.synthesize(text, voice, speaker, settings)
+        segment = engine.synthesize(text, voice, speaker, settings, tmp_dir)
 
         if prev_speaker and prev_speaker != speaker:
             combined += AudioSegment.silent(duration=gap_speaker_change)
@@ -364,6 +372,53 @@ def generate_conversation(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def resolve_input(name: str) -> Path:
+    """
+    Resolve an input filename to an absolute path under INPUT_DIR.
+    Accepts:
+      - bare filename  : "conversation.json"  → input/conversation.json
+      - relative path  : "subdir/conv.json"   → input/subdir/conv.json
+      - absolute path  : "/abs/path/conv.json" (used as-is, no INPUT_DIR prefix)
+    """
+    p = Path(name)
+    if p.is_absolute():
+        return p
+    candidate = INPUT_DIR / p
+    return candidate
+
+
+def resolve_output(name: str, input_path: Path) -> Path:
+    """
+    Resolve an output filename to an absolute path under OUTPUT_DIR.
+    If no name is given, derive it from the input filename stem.
+    """
+    if name:
+        p = Path(name)
+        if p.is_absolute():
+            return p
+        return OUTPUT_DIR / p
+    # Default: same stem as input, .mp3 extension, in OUTPUT_DIR
+    return OUTPUT_DIR / (input_path.stem + ".mp3")
+
+
+def list_input_files() -> None:
+    """Print all JSON files currently in INPUT_DIR."""
+    if not INPUT_DIR.exists():
+        print(f"  Input folder does not exist yet: {INPUT_DIR}")
+        return
+    files = sorted(INPUT_DIR.glob("*.json"))
+    if not files:
+        print(f"  No JSON files found in {INPUT_DIR}")
+        return
+    print(f"\n  JSON files in {INPUT_DIR}:\n")
+    for f in files:
+        print(f"    {f.name}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  CLI
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -372,42 +427,65 @@ def main() -> None:
         description     = "Generate a multi-speaker conversation MP3 (multi-engine TTS).",
         formatter_class = argparse.RawDescriptionHelpFormatter,
         epilog          = (
+            "Input JSON files are read from:  ./input/\n"
+            "Output MP3 files are written to: ./output/\n"
+            "Temp files are cleaned up automatically after each run.\n\n"
             "Engines: elevenlabs | openai_tts | amazon_polly | gtts\n"
-            "Set TTS_ENGINE in .env, or pass --engine on the CLI.\n"
-            "Run --list-voices to see voices for the active engine."
+            "Set TTS_ENGINE in .env, or pass --engine on the CLI."
         ),
     )
     parser.add_argument("--input",       default=None,
-                        help="Path to conversation JSON file")
-    parser.add_argument("--output",      default="conversation.mp3",
-                        help="Output MP3 path (default: conversation.mp3)")
+                        help="JSON filename inside input/ (e.g. conversation.json)")
+    parser.add_argument("--output",      default=None,
+                        help="MP3 filename inside output/ (default: <input_stem>.mp3)")
     parser.add_argument("--engine",      default=None,
                         help="TTS engine to use — overrides TTS_ENGINE in .env")
     parser.add_argument("--list-voices", action="store_true",
                         help="List voices for the active engine and exit")
+    parser.add_argument("--list-inputs", action="store_true",
+                        help="List available JSON files in the input/ folder and exit")
     args = parser.parse_args()
 
-    # Resolve engine: CLI > .env > default
+    # ── Ensure input/ and output/ directories exist ──
+    INPUT_DIR.mkdir(parents=True, exist_ok=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    # ── List input files mode ──
+    if args.list_inputs:
+        list_input_files()
+        sys.exit(0)
+
+    # ── Resolve engine ──
     engine_name = args.engine or os.getenv("TTS_ENGINE", "elevenlabs")
     engine      = build_engine(engine_name)
-
     print(f"\n  Engine : {engine.name}")
 
-    # List-voices mode (no --input needed)
+    # ── List voices mode ──
     if args.list_voices:
         engine.list_voices()
         sys.exit(0)
 
+    # ── Require --input for generation ──
     if not args.input:
-        parser.error("--input is required (unless using --list-voices)")
+        parser.error(
+            "--input is required.\n"
+            f"  Place your JSON file in {INPUT_DIR} then run:\n"
+            "  python conversation_tts.py --input conversation.json"
+        )
 
-    if not os.path.exists(args.input):
-        sys.exit(f"Error: input file '{args.input}' not found.")
+    input_path  = resolve_input(args.input)
+    output_path = resolve_output(args.output, input_path)
 
-    with open(args.input, "r", encoding="utf-8") as f:
+    if not input_path.exists():
+        sys.exit(
+            f"Error: input file not found: {input_path}\n"
+            f"  Make sure it exists inside {INPUT_DIR}"
+        )
+
+    with open(input_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    # Voice map: engine-specific section takes priority over a flat mapping
+    # Voice map: engine-specific section takes priority over flat mapping
     all_voices = data.get("voices", {})
     voice_map  = all_voices.get(engine_name) or all_voices
 
@@ -418,28 +496,43 @@ def main() -> None:
         )
 
     conversation       = data.get("conversation", [])
-    voice_settings_map = data.get("voice_settings")  # ElevenLabs only
+    voice_settings_map = data.get("voice_settings")   # ElevenLabs only
 
     if not conversation:
         sys.exit("Error: 'conversation' list is empty.")
 
-    print(f"  Input  : {args.input}")
-    print(f"  Output : {args.output}")
+    print(f"  Input  : {input_path}")
+    print(f"  Output : {output_path}")
     print(f"  Lines  : {len(conversation)}")
     print(f"  Voices : {voice_map}\n")
 
-    audio = generate_conversation(
-        engine             = engine,
-        conversation       = conversation,
-        voice_map          = voice_map,
-        voice_settings_map = voice_settings_map,
-    )
+    # ── Run inside a temporary directory — wiped automatically on exit ──
+    with tempfile.TemporaryDirectory(prefix="tts_run_") as _tmp:
+        tmp_dir = Path(_tmp)
+        print(f"  Temp   : {tmp_dir}  (auto-deleted on completion)\n")
 
+        try:
+            audio = generate_conversation(
+                engine             = engine,
+                conversation       = conversation,
+                voice_map          = voice_map,
+                tmp_dir            = tmp_dir,
+                voice_settings_map = voice_settings_map,
+            )
+        except Exception as exc:
+            # tmp_dir is deleted even on error thanks to the context manager
+            sys.exit(f"\n  Error during synthesis: {exc}")
+
+    # tmp_dir and all its contents are now deleted
+    print(f"\n  Temp files cleaned up.")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     audio = audio.normalize()
-    audio.export(args.output, format="mp3", bitrate="192k")
+    audio.export(str(output_path), format="mp3", bitrate="192k")
+
     duration = len(audio) / 1000
-    size_kb  = os.path.getsize(args.output) // 1024
-    print(f"\n  Done!  '{args.output}'  ({duration:.1f}s, {size_kb} KB)")
+    size_kb  = output_path.stat().st_size // 1024
+    print(f"  Done!  {output_path}  ({duration:.1f}s, {size_kb} KB)")
 
 
 if __name__ == "__main__":

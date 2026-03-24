@@ -17,19 +17,30 @@ Convert a JSON conversation script into a natural-sounding MP3 with distinct voi
 
 ---
 
+## Project Structure
+
+```
+project/
+├── conversation_tts.py   # Main script
+├── .env                  # Your credentials (never commit this)
+├── .env.example          # Template — copy to .env
+├── requirements.txt      # Python dependencies
+├── README.md
+│
+├── input/                # ← Place your JSON conversation files here
+│   └── conversation.json
+│
+└── output/               # ← Generated MP3s are saved here (auto-created)
+    └── conversation.mp3
+```
+
+The `input/` and `output/` folders are created automatically next to the script if they don't exist. Any temporary files created during synthesis are placed in a system temp directory and **deleted automatically** when the run completes (or fails).
+
+---
+
 ## Installation
 
-### 1. Clone / download the files
-
-```
-conversation_tts.py
-conversation.json
-.env.example
-requirements.txt
-README.md
-```
-
-### 2. Install Python dependencies
+### 1. Install Python dependencies
 
 ```bash
 # Core (always required)
@@ -48,7 +59,7 @@ Or install everything at once:
 pip install -r requirements.txt
 ```
 
-### 3. Install ffmpeg (required by pydub for MP3 handling)
+### 2. Install ffmpeg (required by pydub for MP3 handling)
 
 | OS | Command |
 |---|---|
@@ -56,13 +67,20 @@ pip install -r requirements.txt
 | Ubuntu / Debian | `sudo apt install ffmpeg` |
 | Windows | Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH |
 
-### 4. Configure your `.env`
+### 3. Configure your `.env`
 
 ```bash
 cp .env.example .env
 ```
 
 Open `.env` and fill in your credentials (see [Configuration](#configuration) below).
+
+### 4. Add your conversation JSON
+
+```bash
+cp conversation.json input/my_conversation.json
+# edit as needed
+```
 
 ---
 
@@ -71,12 +89,18 @@ Open `.env` and fill in your credentials (see [Configuration](#configuration) be
 ```bash
 # Run with default engine (elevenlabs)
 python conversation_tts.py --input conversation.json
+# reads:  input/conversation.json
+# writes: output/conversation.mp3
 
-# Specify output file
+# Custom output filename
 python conversation_tts.py --input conversation.json --output heart_attack.mp3
+# writes: output/heart_attack.mp3
 
 # Switch engine via CLI flag (overrides .env)
 python conversation_tts.py --input conversation.json --engine gtts
+
+# List available JSON files in input/
+python conversation_tts.py --list-inputs
 
 # List available voices for the active engine
 python conversation_tts.py --list-voices
@@ -123,7 +147,7 @@ GTTS_SLOW=false
 
 ## Conversation JSON Format
 
-The JSON file has three sections:
+Place JSON files in the `input/` folder. The file has three sections:
 
 ```json
 {
@@ -175,7 +199,11 @@ An ordered list of `{ "speaker", "text" }` objects. Speaker names must match key
 ]
 ```
 
-You can add as many speakers as you like — just add them to both `voices` and the conversation lines.
+---
+
+## Temp File Cleanup
+
+All intermediate files created during synthesis (e.g. gTTS per-line MP3s) are written to a system temporary directory (`/tmp/tts_run_XXXX/`) via Python's `tempfile.TemporaryDirectory`. This directory is **deleted automatically** when the run finishes — whether it succeeds or fails. No manual cleanup is needed.
 
 ---
 
@@ -194,10 +222,7 @@ You can add as many speakers as you like — just add them to both `voices` and 
 | `AZnzlk1XvdvUeBnXmlld` | Domi | Confident female |
 | `MF3mGyEYCl7XYWbV9V6O` | Elli | Emotional female |
 
-Run `--list-voices` to see all voices on your account:
-```bash
-python conversation_tts.py --list-voices
-```
+Run `--list-voices` to see all voices on your account.
 
 ### OpenAI TTS voices
 
@@ -232,40 +257,19 @@ python conversation_tts.py --list-voices
 | `de` | German |
 | `es` | Spanish |
 
-Run `--list-voices` with `TTS_ENGINE=gtts` to see all ~60 supported languages.
+Run `python conversation_tts.py --list-voices` with `TTS_ENGINE=gtts` to see all ~60 supported languages.
 
 ---
 
 ## Getting API Keys
 
-**ElevenLabs**
-1. Sign up at [elevenlabs.io](https://elevenlabs.io)
-2. Go to Profile → API Key
+**ElevenLabs** — sign up at [elevenlabs.io](https://elevenlabs.io) → Profile → API Key
 
-**OpenAI**
-1. Sign up at [platform.openai.com](https://platform.openai.com)
-2. Go to API Keys → Create new secret key
+**OpenAI** — sign up at [platform.openai.com](https://platform.openai.com) → API Keys → Create new secret key
 
-**Amazon Polly**
-1. Sign in to [AWS Console](https://console.aws.amazon.com)
-2. Create an IAM user with the `AmazonPollyFullAccess` policy
-3. Generate an Access Key for that user
+**Amazon Polly** — sign in to [AWS Console](https://console.aws.amazon.com) → create an IAM user with `AmazonPollyFullAccess` → generate an Access Key
 
-**gTTS** — no key needed, uses Google Translate TTS for free.
-
----
-
-## Project Structure
-
-```
-.
-├── conversation_tts.py   # Main script
-├── conversation.json     # Example conversation with all engine voices
-├── .env                  # Your credentials (never commit this)
-├── .env.example          # Template — copy to .env
-├── requirements.txt      # Python dependencies
-└── README.md
-```
+**gTTS** — no key needed.
 
 ---
 
@@ -280,9 +284,11 @@ Run `--list-voices` with `TTS_ENGINE=gtts` to see all ~60 supported languages.
 class MyCustomEngine(TTSEngine):
     name = "my_engine"
 
-    def synthesize(self, text, voice, speaker, voice_settings):
-        # call your API, return AudioSegment
-        ...
+    def synthesize(self, text, voice, speaker, voice_settings, tmp_dir):
+        # Write temp files to tmp_dir — they are auto-deleted after the run
+        tmp_file = tmp_dir / "chunk.wav"
+        # ... call your API, save to tmp_file ...
+        return AudioSegment.from_file(tmp_file, format="wav")
 
     def list_voices(self):
         print("my voice list")
