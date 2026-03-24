@@ -30,8 +30,11 @@ project/
 ├── input/                # ← Place your JSON conversation files here
 │   └── conversation.json
 │
-└── output/               # ← Generated MP3s are saved here (auto-created)
-    └── conversation.mp3
+├── output/               # ← Generated MP3s are saved here (auto-created)
+│   └── conversation.mp3
+│
+└── temp/                 # ← Per-run temp folders live here (auto-created & deleted)
+    └── tts_run_XXXX/     #   exists only during synthesis, wiped when done
 ```
 
 The `input/` and `output/` folders are created automatically next to the script if they don't exist. Any temporary files created during synthesis are placed in a system temp directory and **deleted automatically** when the run completes (or fails).
@@ -203,7 +206,26 @@ An ordered list of `{ "speaker", "text" }` objects. Speaker names must match key
 
 ## Temp File Cleanup
 
-All intermediate files created during synthesis (e.g. gTTS per-line MP3s) are written to a system temporary directory (`/tmp/tts_run_XXXX/`) via Python's `tempfile.TemporaryDirectory`. This directory is **deleted automatically** when the run finishes — whether it succeeds or fails. No manual cleanup is needed.
+All intermediate audio files are written into `temp/tts_run_XXXX/` — a sub-folder created at the start of each run and deleted at the end via Python's `tempfile.TemporaryDirectory`.
+
+**How it works under the hood:**
+
+Every engine receives a `tmp_dir: Path` argument. Instead of passing raw bytes to pydub via `BytesIO` (which caused pydub to create its own uncontrolled temp files), the script uses a `_bytes_to_segment()` helper that:
+
+1. Writes the API response bytes to a real file inside `tmp_dir` using `tempfile.mkstemp(dir=tmp_dir)`
+2. Passes that file path directly to `AudioSegment.from_file()`
+3. Leaves the file in `tmp_dir` to be cleaned up automatically
+
+This means pydub never needs to create temp files of its own — every intermediate file is accounted for inside `temp/tts_run_XXXX/`, and the entire folder is wiped when the run finishes.
+
+**To verify cleanup during development**, pause the script after synthesis:
+
+```python
+# In conversation_tts.py, after generate_conversation():
+input("Paused — inspect temp/ now, then press Enter to continue and delete")
+```
+
+You will see `temp/tts_run_XXXX/` populated with one `.mp3` file per spoken line. Press Enter and the folder disappears.
 
 ---
 
@@ -285,7 +307,7 @@ class MyCustomEngine(TTSEngine):
     name = "my_engine"
 
     def synthesize(self, text, voice, speaker, voice_settings, tmp_dir):
-        # Write temp files to tmp_dir — they are auto-deleted after the run
+        # Always write to tmp_dir — auto-deleted when the run completes
         tmp_file = tmp_dir / "chunk.wav"
         # ... call your API, save to tmp_file ...
         return AudioSegment.from_file(tmp_file, format="wav")
